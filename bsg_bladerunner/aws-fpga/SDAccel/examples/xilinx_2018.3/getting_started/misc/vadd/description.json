@@ -1,0 +1,31 @@
+{
+    "runtime": ["OpenCL"],
+    "example" : "Vector Addition",
+    "overview" : [
+        "Simple example of vector addition."
+    ],
+    "os": [
+        "Linux"
+    ],
+    "host_exe": "vadd",
+    "libs": [
+        "xcl2"
+    ], 
+    "containers": [
+    {
+        "name": "krnl_vadd",        
+        "accelerators": [
+        {
+            "name": "krnl_vadd", 
+            "location": "src/krnl_vadd.cl"
+        }
+       ]
+     }                
+    ],
+    "contributors" : [
+        {
+            "group": "Xilinx",
+            "url" : "http://www.xilinx.com"
+        }
+    ]
+}

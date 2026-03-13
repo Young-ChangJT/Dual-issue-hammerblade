@@ -1,0 +1,82 @@
+# Beebs benchmark list
+#
+# Total: 85
+# Excluded: crc32 ctl matmult sglib-arraysort trio st
+# st excluded because the test itself came with a bug.
+# aha-mont64, trio-sscanf, dtoa, levenstein contains mulh, which is not supported.
+
+BMARK_LIST  = aha-compress          \
+              bs                    \
+              bubblesort            \
+              cnt                   \
+              compress              \
+              cover                 \
+              crc                   \
+              ctl-stack             \
+              ctl-string            \
+              ctl-vector            \
+              cubic                 \
+              dijkstra              \
+              duff                  \
+              edn                   \
+              expint                \
+              fac                   \
+              fasta                 \
+              fdct                  \
+              fibcall               \
+              fir                   \
+              frac                  \
+              huffbench             \
+              insertsort            \
+              janne_complex         \
+              jfdctint              \
+              lcdnum                \
+              ludcmp                \
+              matmult-float         \
+              matmult-int           \
+              mergesort             \
+              miniz                 \
+              minver                \
+              ndes                  \
+              nettle-aes            \
+              nettle-arcfour        \
+              nettle-cast128        \
+              nettle-des            \
+              nettle-md5            \
+              nettle-sha256         \
+              newlib-exp            \
+              newlib-log            \
+              newlib-mod            \
+              newlib-sqrt           \
+              ns                    \
+              nsichneu              \
+              picojpeg              \
+              prime                 \
+              qrduino               \
+              qsort                 \
+              qurt                  \
+              recursion             \
+              rijndael              \
+              select                \
+              sglib-arraybinsearch  \
+              sglib-arrayheapsort   \
+              sglib-arrayquicksort  \
+              sglib-dllist          \
+              sglib-hashtable       \
+              sglib-listinsertsort  \
+              sglib-listsort        \
+              sglib-queue           \
+              sglib-rbtree          \
+              slre                  \
+              sqrt                  \
+              statemate             \
+              stb_perlin            \
+              stringsearch1         \
+              strstr                \
+              tarai                 \
+              template              \
+              trio-snprintf         \
+              ud                    \
+              whetstone             \
+              wikisort							\
+							nbody

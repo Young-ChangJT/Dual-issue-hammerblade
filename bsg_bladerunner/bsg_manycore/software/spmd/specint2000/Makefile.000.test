@@ -1,0 +1,7 @@
+.DEFAULT_GOAL = all
+
+BENCHMARK = 000.test
+BENCHMARK_OBJS = raw.o test.o
+BENCHMARK_INPS =
+
+include ./Makefile.common

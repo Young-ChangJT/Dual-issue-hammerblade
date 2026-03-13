@@ -1,0 +1,13 @@
+../../v/bsg_manycore_pkg.sv
+../../v/vanilla_bean/bsg_vanilla_pkg.sv
+../../v/vanilla_bean/icache.sv
+
+../../../basejump_stl/bsg_test/bsg_nonsynth_clock_gen.sv
+../../../basejump_stl/bsg_test/bsg_nonsynth_reset_gen.sv
+../../../basejump_stl/bsg_mem/bsg_mem_1rw_sync.sv
+../../../basejump_stl/bsg_mem/bsg_mem_1rw_sync_synth.sv
+../../../basejump_stl/bsg_misc/bsg_dff.sv
+../../../basejump_stl/bsg_misc/bsg_dff_en_bypass.sv
+../../../basejump_stl/bsg_misc/bsg_dff_en.sv
+
+testbench.sv

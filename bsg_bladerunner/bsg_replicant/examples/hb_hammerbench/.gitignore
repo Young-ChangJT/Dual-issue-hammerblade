@@ -1,0 +1,15 @@
+*.log
+*.csv
+*.rvo
+*.o
+*.riscv
+*.json
+*.a
+*.ld
+*.so
+ucli.key
+*.S
+*.ll
+dramsim3.txt
+*.pdf
+*.swp

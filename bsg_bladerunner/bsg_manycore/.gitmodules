@@ -1,0 +1,17 @@
+[submodule "imports/riscv-tests"]
+	path = imports/riscv-tests
+	url = https://github.com/riscv/riscv-tests.git
+  ignore = dirty
+[submodule "imports/coremark"]
+	path = imports/coremark
+	url = https://github.com/eembc/coremark.git
+  ignore = dirty
+[submodule "imports/greenlight"]
+	path = imports/greenlight
+	url = https://bitbucket.org/taylor-bsg/greenlight/src/master/
+[submodule "imports/beebs"]
+	path = imports/beebs
+	url = https://github.com/bespoke-silicon-group/beebs
+[submodule "imports/HardFloat"]
+	path = imports/HardFloat
+	url = https://github.com/bsg-external/HardFloat

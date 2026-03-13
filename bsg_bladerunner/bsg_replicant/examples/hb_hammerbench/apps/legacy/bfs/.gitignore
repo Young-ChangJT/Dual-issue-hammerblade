@@ -1,0 +1,10 @@
+input-analyze
+input-gen
+input-degree-list
+inputs/
+*tgy/
+stack.info.*
+*.dat
+graph-tools
+hammerblade-helpers
+*pod/

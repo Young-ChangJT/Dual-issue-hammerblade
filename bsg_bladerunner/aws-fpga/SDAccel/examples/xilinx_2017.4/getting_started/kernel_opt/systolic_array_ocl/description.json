@@ -1,0 +1,38 @@
+{
+    "runtime": ["OpenCL"],
+    "example": "Systolic Array Implementation (CL)",
+    "overview": [
+        "This is a simple example of matrix multiplication (Row x Col) to help developers learn systolic array based algorithm design. Note: Systolic array based algorithm design is well suited for FPGA."
+    ],
+    "Key Concepts": [ "Kernel Optimization", "Systolic Array"],
+    "Keywords": ["__attribute__((xcl_pipeline_loop))", "__attribute__((xcl_array_partition(<type>,<dimension>)))"],
+    "os": [
+        "Linux"
+    ],
+    "libs": [
+        "xcl2"
+    ],
+    "nboard":["xilinx:vcu1525:dynamic", "xilinx_vcu1525_dynamic_5_0"],
+    "em_cmd": "./host",
+    "hw_cmd": "../../../utility/nimbix/nimbix-run.py -- ./host",
+    "accelerators": [
+        {
+            "container": "mmult", 
+            "name": "mmult", 
+            "location": "src/mmult.cl"
+        }
+    ],
+    "contributors" : [
+        {
+            "group": "Xilinx",
+            "url" : "http://www.xilinx.com"
+        }
+    ],
+    "revision" : [
+        {
+            "date" : "DEC2016",
+            "version": "1.0",
+            "description": "Initial Xilinx Release"
+        }
+    ]
+}

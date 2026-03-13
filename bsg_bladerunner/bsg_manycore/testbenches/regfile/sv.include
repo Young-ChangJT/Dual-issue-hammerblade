@@ -1,0 +1,9 @@
+
+../../v/vanilla_bean/regfile.sv
+../../v/vanilla_bean/regfile_synth.sv
+../../v/vanilla_bean/regfile_hard.sv
+
+../../../basejump_stl/bsg_test/bsg_nonsynth_clock_gen.sv
+../../../basejump_stl/bsg_test/bsg_nonsynth_reset_gen.sv
+
+testbench.sv

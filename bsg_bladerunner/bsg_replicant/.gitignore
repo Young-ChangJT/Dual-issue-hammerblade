@@ -1,0 +1,17 @@
+*.wcfg
+*.swp
+*.str
+*.log
+*.csv
+*~
+__pycache__
+.Xil
+*.vpp
+*.dot
+*.tree
+machines/*/V*
+machines/*/obj_dir/
+xcelium.d/
+blood_detailed.png
+key_detailed.png
+*.vpd

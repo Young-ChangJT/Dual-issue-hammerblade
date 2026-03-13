@@ -1,0 +1,13 @@
+TESTS += $(call test-name,4,2,1)
+TESTS += $(call test-name,4,4,1)
+TESTS += $(call test-name,8,4,1)
+TESTS += $(call test-name,8,8,1)
+TESTS += $(call test-name,16,8,1)
+TESTS += $(call test-name,16,16,1)
+
+TESTS += $(call test-name,4,2,16)
+TESTS += $(call test-name,4,4,16)
+TESTS += $(call test-name,8,4,16)
+TESTS += $(call test-name,8,8,16)
+TESTS += $(call test-name,16,8,16)
+TESTS += $(call test-name,16,16,16)

@@ -1,0 +1,7 @@
+# $(call test-name,[tile-x],[tile-y],[num-iter],[warm-cache])
+TESTS += $(call test-name,4,2,2,no)
+TESTS += $(call test-name,4,4,2,no)
+TESTS += $(call test-name,8,4,2,no)
+TESTS += $(call test-name,8,8,2,no)
+TESTS += $(call test-name,16,8,2,no)
+TESTS += $(call test-name,16,16,2,no)

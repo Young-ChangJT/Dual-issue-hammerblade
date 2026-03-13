@@ -1,0 +1,24 @@
+From 111c94e2dc2b6e824edcb8c564fb6590bf85cca1 Mon Sep 17 00:00:00 2001
+From: Marcus Chow <mchow009@ucr.edu>
+Date: Sun, 22 Sep 2024 19:07:57 -0700
+Subject: [PATCH] [PATCH] Add missing stdexcept imports (GCC 10)
+
+---
+ riscv/devices.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/riscv/devices.h b/riscv/devices.h
+index 9200f29b..697f5442 100644
+--- a/riscv/devices.h
++++ b/riscv/devices.h
+@@ -6,6 +6,7 @@
+ #include "abstract_device.h"
+ #include "platform.h"
+ #include <map>
++#include <stdexcept>
+ #include <vector>
+ #include <utility>
+ 
+-- 
+2.16.5
+

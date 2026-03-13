@@ -1,0 +1,6 @@
+direction_*
+graphit/
+*.el
+*.tar.gz
+*.mtx
+gapbs

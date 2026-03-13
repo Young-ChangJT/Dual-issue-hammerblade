@@ -1,0 +1,151 @@
+#########################################################
+# BSG Manycore Regression Suite
+# 
+# Format of each run:
+#
+# <test group>_list += '<test directory> <make target>'
+#
+#
+# Current test groups:
+#
+# 1. rv32ui
+# 2. rv32um
+# 3. spmd
+# 4. coremark
+# 5. beebs
+#########################################################
+
+
+##########################################
+# Regression groups/levels
+
+ifndef test_case_list
+
+  ifdef GROUP
+    test_case_list = $($(GROUP)_list)
+  else
+    # Default is level 3 regression
+    LEVEL ?= 3
+
+    # Level 0
+    test_case_list = $(rv32ui_list)
+
+    # Level 1
+    ifeq ($(shell echo $(LEVEL)\>=1 | bc),1)
+      test_case_list += $(rv32um_list)
+    endif
+
+    # Level 2
+    ifeq ($(shell echo $(LEVEL)\>=2 | bc),1)
+      test_case_list += $(spmd_list)
+    endif
+
+    # Level 3
+    ifeq ($(shell echo $(LEVEL)\>=3 | bc),1)
+      test_case_list += $(coremark_list)
+    endif
+
+    # Level 4
+    ifeq ($(shell echo $(LEVEL)\>=4 | bc),1)
+      test_case_list += $(beebs_list)
+    endif
+  endif
+
+endif
+
+
+
+##########################################
+# RISC-V 32 Assembly Tests
+
+# The rv32-ui
+rv32ui_list+='bsg_riscv_tests addi.run'
+rv32ui_list+='bsg_riscv_tests add.run'
+rv32ui_list+='bsg_riscv_tests andi.run'
+rv32ui_list+='bsg_riscv_tests and.run'
+rv32ui_list+='bsg_riscv_tests auipc.run'
+rv32ui_list+='bsg_riscv_tests beq.run'
+rv32ui_list+='bsg_riscv_tests bge.run'
+rv32ui_list+='bsg_riscv_tests bgeu.run'
+rv32ui_list+='bsg_riscv_tests blt.run'
+rv32ui_list+='bsg_riscv_tests bltu.run'
+rv32ui_list+='bsg_riscv_tests bne.run'
+#rv32ui_list+='bsg_riscv_tests fence_i.run'
+rv32ui_list+='bsg_riscv_tests jalr.run'
+rv32ui_list+='bsg_riscv_tests jal.run'
+rv32ui_list+='bsg_riscv_tests lb.run'
+rv32ui_list+='bsg_riscv_tests lbu.run'
+rv32ui_list+='bsg_riscv_tests lh.run'
+rv32ui_list+='bsg_riscv_tests lhu.run'
+rv32ui_list+='bsg_riscv_tests lui.run'
+rv32ui_list+='bsg_riscv_tests lw.run'
+rv32ui_list+='bsg_riscv_tests ori.run'
+rv32ui_list+='bsg_riscv_tests or.run'
+rv32ui_list+='bsg_riscv_tests sb.run'
+rv32ui_list+='bsg_riscv_tests sh.run'
+rv32ui_list+='bsg_riscv_tests simple.run'
+rv32ui_list+='bsg_riscv_tests slli.run'
+rv32ui_list+='bsg_riscv_tests sll.run'
+rv32ui_list+='bsg_riscv_tests slti.run'
+rv32ui_list+='bsg_riscv_tests sltiu.run'
+rv32ui_list+='bsg_riscv_tests slt.run'
+rv32ui_list+='bsg_riscv_tests sltu.run'
+rv32ui_list+='bsg_riscv_tests srai.run'
+rv32ui_list+='bsg_riscv_tests sra.run'
+rv32ui_list+='bsg_riscv_tests srli.run'
+rv32ui_list+='bsg_riscv_tests srl.run'
+rv32ui_list+='bsg_riscv_tests sub.run'
+rv32ui_list+='bsg_riscv_tests sw.run'
+rv32ui_list+='bsg_riscv_tests xori.run'
+rv32ui_list+='bsg_riscv_tests xor.run'
+
+# The rv32-um
+rv32um_list+='bsg_riscv_tests div.run'
+rv32um_list+='bsg_riscv_tests divu.run'
+rv32um_list+='bsg_riscv_tests mulh.run'
+rv32um_list+='bsg_riscv_tests mulhsu.run'
+rv32um_list+='bsg_riscv_tests mulhu.run'
+rv32um_list+='bsg_riscv_tests mul.run'
+rv32um_list+='bsg_riscv_tests rem.run'
+rv32um_list+='bsg_riscv_tests remu.run'
+
+
+#####################################################
+# SPMD tests
+spmd_list+=hello
+spmd_list+=bsg_token_queue
+spmd_list+=bsg_fence
+spmd_list+=bsg_lr_acq
+spmd_list+=bsg_chained_core
+spmd_list+=bsg_outbuf_full
+spmd_list+=mul_div
+spmd_list+=bypass_core
+spmd_list+=bsg_remote_load
+spmd_list+=instr_tests/jal_rv32
+spmd_list+=instr_tests/branch_rv32
+spmd_list+=load_dependency
+spmd_list+=remote_load_crc
+spmd_list+=bsg_remote_congestion
+spmd_list+=bsg_tile_group_barrier
+spmd_list+=bsg_mutex
+spmd_list+=bsg_barrier
+spmd_list+=bsg_transpose
+spmd_list+=regfile_x0_test
+spmd_list+=fib
+spmd_list+=crc32
+spmd_list+=quicksort
+spmd_list+=nprimes
+spmd_list+=depend_stall_mispredict
+spmd_list+=striped_hello
+spmd_list+=fft
+
+
+#######################################################
+# Benchmarks
+
+# Coremark
+coremark_list+=coremark
+
+# Beebs
+include $(BSG_MANYCORE_DIR)/software/spmd/beebs/Makefile.bmarklist
+beebs_list+=$(foreach bmark, $(BMARK_LIST), 'beeps $(bmark).run')
