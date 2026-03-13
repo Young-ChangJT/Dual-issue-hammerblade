@@ -12,7 +12,7 @@ module scoreboard
   #(els_p = RV32_reg_els_gp
     , `BSG_INV_PARAM(num_src_port_p)
     , num_clear_port_p=1
-    , parameter num_score_port_p = 2 // 新增：參數化 Score Port 數量，預設為 2
+    , parameter num_score_port_p = 2 
     , x0_tied_to_zero_p = 0
     , localparam id_width_lp = `BSG_SAFE_CLOG2(els_p)
   )
@@ -26,11 +26,6 @@ module scoreboard
     , input [num_src_port_p-1:0] op_reads_rf_i
     , input op_writes_rf_i
 
-    /* 原本的單埠 Score 定義
-    , input score_i
-    , input [id_width_lp-1:0] score_id_i
-    */
-    // 新增：雙埠 Score 定義
     , input [num_score_port_p-1:0] score_i
     , input [num_score_port_p-1:0][id_width_lp-1:0] score_id_i
 
@@ -84,20 +79,6 @@ module scoreboard
   end
   // synopsys translate_on
 
-  /* 原本的單埠 Score 解碼邏輯 (註解保留)
-  wire allow_zero = (x0_tied_to_zero_p == 0) | (score_id_i != '0);
-
-  logic [els_p-1:0] score_bits;
-  bsg_decode_with_v #(
-    .num_out_p(els_p)
-  ) score_demux (
-    .i(score_id_i)
-    ,.v_i(score_i & allow_zero)
-    ,.o(score_bits)
-  );
-  */
-
-  // 新增：多路 Score 解碼邏輯 (與 Clear 邏輯對稱)
   logic [num_score_port_p-1:0][els_p-1:0] score_by_port;
   logic [els_p-1:0][num_score_port_p-1:0] score_by_port_t;
   logic [els_p-1:0] score_combined;
@@ -123,7 +104,7 @@ module scoreboard
 
   always_comb begin
     for (integer i = 0; i < els_p; i++) begin
-      score_combined[i] = |score_by_port_t[i]; // 合併多個 Score Port 的結果
+      score_combined[i] = |score_by_port_t[i];
     end
   end
 
@@ -139,13 +120,6 @@ module scoreboard
         // the pipeline should not allow a new dependency
         // on a register until the old dependency on that 
         // register is cleared.
-
-        /* 原本的更新邏輯 (註解保留)
-        if(score_bits[i]) begin
-          scoreboard_r[i] <= 1'b1;
-        end
-        */
-        // 新增：使用合併後的 score_combined 更新狀態
         if(score_combined[i]) begin
           scoreboard_r[i] <= 1'b1;
         end
@@ -203,18 +177,6 @@ module scoreboard
 
   // find which could depend on score.
 
-  /* 原本的單埠依賴檢查 (註解保留)
-  logic [num_src_port_p-1:0] rs_depend_on_score;
-  logic rd_depend_on_score;
-
-  for (integer i = 0; i < num_src_port_p; i++) begin
-    assign rs_depend_on_score[i] = (src_id_i[i] == score_id_i) && op_reads_rf_i[i];
-  end
-
-  assign rd_depend_on_score = (dest_id_i == score_id_i) && op_writes_rf_i;
-  */
-
-  // 新增：多埠依賴檢查 (檢查 src_id 是否與任何一個 Score Port 的 score_id 相同)
   logic [num_src_port_p-1:0] rs_depend_on_score_any;
   logic rd_depend_on_score_any;
   logic [num_src_port_p-1:0] match_any_rs;
@@ -244,27 +206,10 @@ module scoreboard
     rd_depend_on_score_any = match_any_rd & op_writes_rf_i;
   end
 
-  // score_i arrives later than other signals, so we want to remove it from the long path.
   wire depend_on_sb = |({rd_depend_on_sb, rs_depend_on_sb} & ~{rd_on_clear_combined, rs_on_clear_combined});
   wire any_score_dep = |{rd_depend_on_score_any, rs_depend_on_score_any};
 
-  /* 原本的 dependency 組合邏輯 (註解保留)
-  wire depend_on_score = |{rd_depend_on_score, rs_depend_on_score};
-  assign dependency_o = depend_on_sb | (depend_on_score & score_i & allow_zero);
-  */
-
-  // 原本只扣除了 depend_on_sb 的清除路徑，現在我們統一處理
   assign dependency_o = depend_on_sb | any_score_dep; 
-
-  // synopsys translate_off
-  // always_ff @ (negedge clk_i) begin
-  //   if (~reset_i) begin
-  //     // 修改：檢查任何一個 score 與任何一個 clear 是否衝突
-  //     assert((score_combined & clear_combined) == '0)
-  //       else $error("[BSG_ERROR] score and clear on the same id cannot happen.");
-  //   end
-  // end
-  // synopsys translate_on
 
 
 endmodule

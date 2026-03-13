@@ -149,7 +149,6 @@ module vanilla_core
 
   localparam lg_icache_block_size_in_words_lp = `BSG_SAFE_CLOG2(icache_block_size_in_words_p);
 
-  // --- icache 訊號定義 ---
   logic [RV32_instr_width_gp-1:0] instr0, instr1;
   logic [pc_width_lp-1:0] pc_n, pc_r;
   wire [pc_width_lp-1:0] pc_plus4 = pc_r + 1'b1;
@@ -159,22 +158,17 @@ module vanilla_core
   logic icache_branch_predicted_taken_lo;
   logic [pc_width_lp-1:0] jalr_prediction;
   logic [pc_width_lp-1:0] pred_or_jump_addr;
-
-  // --- icache 控制訊號 ---
   logic icache_v_li;
   logic icache_w_li;
   logic icache_read_pc_plus4_li;
   logic [pc_width_lp-1:0] icache_w_pc;
   logic [data_width_p-1:0] icache_winstr;
   
-  // --- ID 階段訊號定義 ---
   decode_s    decode0, decode1;
   fp_decode_s fp_decode0, fp_decode1;
   logic       can_issue_dual;
   logic       icache_block_boundary;
 
-  // --- 1. 取指與解碼整合 ---
-  // 使用你修改過的雙輸出 icache
   icache #(
       .icache_tag_width_p(icache_tag_width_p)
       ,.icache_entries_p(icache_entries_p)
@@ -214,14 +208,10 @@ module vanilla_core
     end
   end
 
-  // 同時解碼兩條指令
   cl_decode d0 (.instruction_i(instr0), .decode_o(decode0), .fp_decode_o(fp_decode0));
   cl_decode d1 (.instruction_i(instr1), .decode_o(decode1), .fp_decode_o(fp_decode1));
 
-  // ====================================================================
-  // [TESTBENCH COMPATIBILITY] Profiler 相容性訊號
-  // 專門留給外部 Testbench (vanilla_core_profiler) 綁定讀取，綜合時會自動被剔除
-  // ====================================================================
+
   wire [pc_width_lp-1:0] if_pc  = pc_r;
   wire [pc_width_lp-1:0] id_pc  = id_r.pc_plus4 - 1'b1;
   wire [pc_width_lp-1:0] exe_pc = exe_r.pc_plus4 - 1'b1;
@@ -229,7 +219,7 @@ module vanilla_core
   logic int_dependency;
   logic float_dependency;
   
-  // --- 2. 發射控制與 PC 更新 ---
+
   vanilla_issue_ctrl issue_ctrl (
       .instr0_i(instr0),
       .instr1_i(instr1),
@@ -238,22 +228,20 @@ module vanilla_core
       .fp_decode0_i(fp_decode0),
       .decode1_i(decode1),
       .fp_decode1_i(fp_decode1),
-      .int_sb_dep_i(int_dependency),     // 來自雙埠 Scoreboard
-      .float_sb_dep_i(float_dependency), // 來自雙埠 Scoreboard
+      .int_sb_dep_i(int_dependency),   
+      .float_sb_dep_i(float_dependency), 
       .icache_block_boundary_i(icache_block_boundary),
       .can_issue_dual_o(can_issue_dual)
   );
 
-// ====================================================================
-  // [IF STAGE DUAL-ISSUE ROUTING LOGIC] (將指令分流到對應的通道)
-  // ====================================================================
+
   instruction_s int_instr_n;
   decode_s      int_decode_n;
-  fp_decode_s   int_fp_decode_n;     // 🌟 新增：給 INT 管線的專屬防呆
+  fp_decode_s   int_fp_decode_n;     
 
   instruction_s fp_instr_n;
   fp_decode_s   fp_fp_decode_n;
-  decode_s      fp_decode_general_n; // FP指令的通用解碼(包含rd, is_load等)
+  decode_s      fp_decode_general_n; 
 
   always_comb begin
     int_instr_n         = '0;
@@ -263,59 +251,9 @@ module vanilla_core
     fp_fp_decode_n      = '0;
     fp_decode_general_n = '0;
 
-//     // 單發射：只處理 instr0，根據類型分流
-//     // 🔧 修復：Barrier 指令必須走 INT 管線！
-//     if (decode0.is_barsend_op | decode0.is_barrecv_op) begin
-//         int_instr_n  = instr0;
-//         int_decode_n = decode0;
-//     end else
-//     if (decode0.is_fp_op) begin
-//         fp_instr_n          = instr0;
-//         fp_fp_decode_n      = fp_decode0;
-//         fp_decode_general_n = decode0;
-//     end else begin
-//         int_instr_n         = instr0;
-//         int_decode_n        = decode0;
-//     end
-// end
-    // 如果允許雙發射，進行智慧分流
-  //   if (can_issue_dual) begin
-  //   if (1'b0) begin
-  //     // 判斷第一條指令 (instr0) 是不是純 FP 運算
-  //     if (decode0.is_fp_op) begin
-  //       // 組合: instr0 = FP, instr1 = INT (或 FP_LOAD)
-  //       fp_instr_n          = instr0;
-  //       fp_fp_decode_n      = fp_decode0;
-  //       fp_decode_general_n = decode0;
-        
-  //       int_instr_n  = instr1;
-  //       int_decode_n = decode1;
-  //     end else begin
-  //       // 組合: instr0 = INT (或 FP_LOAD), instr1 = FP
-  //       int_instr_n  = instr0;
-  //       int_decode_n = decode0;
-        
-  //       fp_instr_n          = instr1;
-  //       fp_fp_decode_n      = fp_decode1;
-  //       fp_decode_general_n = decode1;
-  //     end
-  //     end else begin
-  //     // 單發射模式：只處理 instr0，並把它放對管線！
-  //     if (decode0.is_fp_op) begin
-  //       fp_instr_n          = instr0;
-  //       fp_fp_decode_n      = fp_decode0;
-  //       fp_decode_general_n = decode0;
-  //     end else begin
-  //       int_instr_n         = instr0;
-  //       int_decode_n        = decode0;
-  //   end
-  // end
-  // end
-  // end
+
   if (can_issue_dual) begin
-        // 🚀 雙發射模式：同時處理 instr0 和 instr1
         if (decode0.is_fp_op) begin
-            // 組合: instr0 = FP, instr1 = INT (或 FP_LOAD)
             fp_instr_n          = instr0;
             fp_fp_decode_n      = fp_decode0;
             fp_decode_general_n = decode0;
@@ -324,7 +262,6 @@ module vanilla_core
             int_decode_n        = decode1;
             int_fp_decode_n     = fp_decode1;
         end else begin
-            // 組合: instr0 = INT (或 FP_LOAD), instr1 = FP
             int_instr_n         = instr0;
             int_decode_n        = decode0;
             int_fp_decode_n     = fp_decode0;
@@ -334,8 +271,6 @@ module vanilla_core
             fp_decode_general_n = decode1;
         end
     end else begin
-        // 🐢 單發射模式 (退回模式)：只處理 instr0
-        // Barrier 等特殊指令必須走 INT 管線
         if (decode0.is_barsend_op | decode0.is_barrecv_op) begin
             int_instr_n  = instr0;
             int_decode_n = decode0;
@@ -402,22 +337,14 @@ module vanilla_core
     ,.r_data_o(int_rf_rdata)
   );
   
-  // 合併兩條管線的整數計分板讀寫需求
+
   wire int_sb_read_rs1 = id_r.decode.read_rs1 | id_r.decode1.read_rs1;
   wire int_sb_read_rs2 = id_r.decode.read_rs2 | id_r.decode1.read_rs2;
   wire int_sb_write_rd = id_r.decode.write_rd | id_r.decode1.write_rd;
 
-  // 智慧判斷地址：優先看 decode1 是否需要用，否則看 decode0
   wire [reg_addr_width_lp-1:0] int_sb_rs1_addr = id_r.decode1.read_rs1 ? id_r.instruction1.rs1 : id_r.instruction.rs1;
   wire [reg_addr_width_lp-1:0] int_sb_rs2_addr = id_r.decode1.read_rs2 ? id_r.instruction1.rs2 : id_r.instruction.rs2;
   wire [reg_addr_width_lp-1:0] int_sb_rd_addr  = id_r.decode1.write_rd ? id_r.instruction1.rd  : id_r.instruction.rd;
-  // wire int_sb_read_rs1 = id_r.decode.read_rs1;
-  // wire int_sb_read_rs2 = id_r.decode.read_rs2;
-  // wire int_sb_write_rd = id_r.decode.write_rd;
-
-  // wire [reg_addr_width_lp-1:0] int_sb_rs1_addr = id_r.instruction.rs1;
-  // wire [reg_addr_width_lp-1:0] int_sb_rs2_addr = id_r.instruction.rs2;
-  // wire [reg_addr_width_lp-1:0] int_sb_rd_addr  = id_r.instruction.rd;
 
   wire float_sb_read_frs1 = id_r.decode.read_frs1 | id_r.decode1.read_frs1;
   wire float_sb_read_frs2 = id_r.decode.read_frs2 | id_r.decode1.read_frs2;
@@ -485,9 +412,6 @@ module vanilla_core
     ,.r_data_o(float_rf_rdata)
   );
 
-
-  // FP scoreboard
-  // 雙發射必須使用 2-bit 陣列來處理 Clear 訊號！
   logic [1:0] float_sb_clear;
   logic [1:0][reg_addr_width_lp-1:0] float_sb_clear_id;
 
@@ -505,12 +429,12 @@ module vanilla_core
     ,.op_reads_rf_i({float_sb_read_frs3, float_sb_read_frs2, float_sb_read_frs1})
     ,.op_writes_rf_i(float_sb_write_frd)
     ,.score_i({ 
-        (~stall_all & float_remote_load_in_exe), // 🔴 改回這樣：只 Score 遠端 Load
-        (~stall_all & fdiv_fsqrt_in_fp_exe)      // 🔴 改回這樣：只 Score 除法
+        (~stall_all & float_remote_load_in_exe), 
+        (~stall_all & fdiv_fsqrt_in_fp_exe)      
     })
     ,.score_id_i({ 
-        exe_r.instruction.rd,                    // 🔴 改回 EXE 階段的 rd
-        fp_exe_ctrl_r.rd                         // 🔴 改回 FP_EXE 階段的 rd
+        exe_r.instruction.rd,                
+        fp_exe_ctrl_r.rd                         
     })
     ,.clear_i(float_sb_clear)
     ,.clear_id_i(float_sb_clear_id)
@@ -671,9 +595,6 @@ module vanilla_core
 
 
   // FP_EXE forwarding muxes
-  //
-  
-  // 定義 FP 專屬的來源暫存器
   wire [reg_addr_width_lp-1:0] id_frs1 = id_r.instruction1.rs1;
   wire [reg_addr_width_lp-1:0] id_frs2 = id_r.instruction1.rs2;
   wire [reg_addr_width_lp-1:0] id_frs3 = id_r.instruction1[31:27];
@@ -1339,8 +1260,7 @@ module vanilla_core
                      & ~icache_flush_r_lo;
 
   wire [pc_width_lp-1:0] pc_plus_stride = pc_r + (safe_dual_issue ? 2'd2 : 2'd1);
-  //wire safe_dual_issue = 1'b0;
-  //wire [pc_width_lp-1:0] pc_plus_stride = pc_r + 1'b1;
+
   
   always_comb begin
     icache_read_pc_plus4_li = 1'b0;
@@ -1377,93 +1297,10 @@ module vanilla_core
     end
     else begin
       icache_read_pc_plus4_li = 1'b1;
-      pc_n = pc_plus_stride; // 雙發射時跳 2，單發射時跳 1
+      pc_n = pc_plus_stride; 
     end
   end
   
-  // debug printing for interrupt and mret
-  // synopsys translate_off
-
-  /* wire target_tile_debug = 1'b1;
-
-  always_ff @ (posedge clk_i) begin
-    if (reset_i) begin
-      stall_watchdog_r <= '0;
-    end
-    else if (target_tile_debug) begin
-      if (id_r.valid & (stall_id | stall_all)) begin
-        stall_watchdog_r <= stall_watchdog_r + 1'b1;
-      end
-      else begin
-        stall_watchdog_r <= '0;
-      end
-
-      if (stall_watchdog_r == 32'd5000) begin
-        $display("[DBG][STALL] persistent stall at t=%0t x=%0d y=%0d pc=%h id_valid=%0b exe_valid=%0b stall_id=%0b stall_all=%0b",
-          $time, global_x_i, global_y_i, if_pc, id_r.valid, exe_r.valid, stall_id, stall_all);
-        $display("[DBG][STALL][ID] long=%0b local=%0b imul=%0b bypass=%0b lr_aq=%0b fence=%0b amo_aq=%0b amo_rl=%0b req=%0b credit=%0b fdiv_busy=%0b idiv_busy=%0b fcsr=%0b barrier=%0b",
-          stall_depend_long_op, stall_depend_local_load, stall_depend_imul, stall_bypass,
-          stall_lr_aq, stall_fence, stall_amo_aq, stall_amo_rl, stall_remote_req,
-          stall_remote_credit, stall_fdiv_busy, stall_idiv_busy, stall_fcsr, stall_barrier);
-        $display("[DBG][STALL][IDSTAGE] id_r.decode.is_barrecv=%0b is_barsend=%0b is_lr_aq=%0b",
-          id_r.decode.is_barrecv_op, id_r.decode.is_barsend_op, id_r.decode.is_lr_aq_op);
-        $display("[DBG][STALL][BARRIER] barrecv=%0b barsend=%0b barrier_i=%0b barrier_o=%0b",
-          id_r.decode.is_barrecv_op, id_r.decode.is_barsend_op, barrier_data_i, barrier_data_o);
-        $display("[DBG][STALL][LRAQ] instr=%h is_lr_aq=%0b is_lr=%0b reserved_r=%0b lsu_reserve=%0b break_reserve=%0b reserved_addr=%h dmem_v=%0b dmem_w=%0b dmem_addr=%h",
-          id_r.instruction, id_r.decode.is_lr_aq_op, id_r.decode.is_lr_op, reserved_r,
-          lsu_reserve_lo, break_reserve, reserved_addr_r, dmem_v_li, dmem_w_li, dmem_addr_li);
-        $display("[DBG][STALL][ALL] ic_store=%0b remote_ld_wb=%0b ifetch_wait=%0b remote_flw_wb=%0b flush=%0b ic_miss_pipe=%0b",
-          stall_icache_store, stall_remote_ld_wb, stall_ifetch_wait, stall_remote_flw_wb, flush, icache_miss_in_pipe);
-        $display("[DBG][STALL][SB] int_dep=%0b float_dep=%0b int_score=%0b int_clear=%0b float_score=%0b float_clear=%b",
-          int_dependency, float_dependency, int_sb_score, int_sb_clear, float_sb_score, float_sb_clear);
-      end
-    end
-    else begin
-      stall_watchdog_r <= '0;
-    end
-  end */
-
-  /* always_ff @ (negedge clk_i) begin
-    if (~reset_i & id_r.valid & (id_r.decode.is_barsend_op | id_r.decode.is_barrecv_op)) begin
-    $display("[DBG][BARRIER-DECODE] t=%0t x=%0d y=%0d pc=%h is_barsend=%b is_barrecv=%b is_fp_op=%b instr=%h",
-      $time, global_x_i, global_y_i, id_pc,
-      id_r.decode.is_barsend_op, id_r.decode.is_barrecv_op,
-      id_r.decode.is_fp_op, id_r.instruction);
-  end
-
-    if (~reset_i & id_r.valid & mcsr_we_li & (id_r.instruction[31:20] == 12'hfc1)) begin
-      $display("[DBG][BARCFG] t=%0t x=%0d y=%0d val=%h src=%b dest=%0d",
-        $time, global_x_i, global_y_i, mcsr_data_li,
-        mcsr_data_li[0+:7], mcsr_data_li[16+:3]);
-    end
-
-    if (~reset_i & ~stall_all & interrupt_ready) begin
-      if (remote_interrupt_ready) begin
-        $display("[INFO][VCORE] Remote interrupt taken. t=%0t, x=%0d, y=%0d, mepc=%h",
-          $time, global_x_i, global_y_i, {npc_r, 2'b00});
-      end
-      else begin
-        $display("[INFO][VCORE] Trace interrupt taken. t=%0t, x=%0d, y=%0d, mepc=%h",
-          $time, global_x_i, global_y_i, {npc_r, 2'b00});
-      end
-    end
-
-    if (~reset_i & ~stall_all & exe_r.decode.is_mret_op) begin
-      $display("[INFO][VCORE] mret called. t=%0t, x=%0d, y=%0d, mepc=%h",
-        $time, global_x_i, global_y_i, {mepc_r, 2'b00});
-    end */
-
-/*    if (jalr_mispredict)
-      $display("[INFO][VCORE] jalr_mispredict. t=%0t, x=%0d, y=%0d, true=%x pred=%x\n", 
-	       $time, global_x_i, global_y_i, 
-	       { alu_jalr_addr, 2'b00 },
-	       { exe_r.pred_or_jump_addr[2+:pc_width_lp], 2'b00 }
-	       );
- */
-
-  // synopsys translate_on
-
-
 
   // icache logic
   wire read_icache = (icache_miss_in_pipe & ~flush)
@@ -1492,7 +1329,6 @@ module vanilla_core
 
   // IF -> ID
   always_comb begin
-    // common case
     id_n = '{
       pc_plus4: {{(data_width_p-pc_width_lp-2){1'b0}},
            (can_issue_dual & decode0.is_fp_op) ? (pc_r + 2'd2) : pc_plus4,
@@ -1501,8 +1337,6 @@ module vanilla_core
       instruction: int_instr_n,
       decode: int_decode_n,
       fp_decode: int_fp_decode_n,
-
-      // --- 塞入第二條指令 ---
       instruction1: fp_instr_n,
       decode1: fp_decode_general_n,
       fp_decode1: fp_fp_decode_n,
@@ -1554,7 +1388,6 @@ module vanilla_core
         };
       end
       else begin
-        // common case
         id_en = 1'b1;
       end
     end
@@ -1568,12 +1401,9 @@ module vanilla_core
 
   assign int_rs1_addr = id_n.decode1.read_rs1 ? id_n.instruction1.rs1 : id_n.instruction.rs1;
   assign int_rs2_addr = id_n.decode1.read_rs2 ? id_n.instruction1.rs2 : id_n.instruction.rs2;
-  // 浮點暫存器堆讀取：合併 INT 管線(decode) 與 FP 管線(decode1) 的讀取需求
   assign float_rf_read[0] = (id_n.decode1.read_frs1 | id_n.decode.read_frs1) & rf_read_en;
   assign float_rf_read[1] = (id_n.decode1.read_frs2 | id_n.decode.read_frs2) & rf_read_en;
   assign float_rf_read[2] = (id_n.decode1.read_frs3 | id_n.decode.read_frs3) & rf_read_en;
-
-  // 智慧定址：誰舉手要讀，就把誰的暫存器地址接過去
   assign frs1_addr = id_n.decode1.read_frs1 ? id_n.instruction1.rs1 : id_n.instruction.rs1;
   assign frs2_addr = id_n.decode1.read_frs2 ? id_n.instruction1.rs2 : id_n.instruction.rs2;
   assign frs3_addr = id_n.decode1.read_frs3 ? id_n.instruction1[31:27] : id_n.instruction[31:27];
@@ -1614,60 +1444,16 @@ module vanilla_core
 
   assign stall_depend_long_op = int_dependency | float_dependency | rs1_sb_clear_now | rs2_sb_clear_now | float_clear_hit;
   
-
-  // [Local Load Dependency Stall]
-  // 當 EXE 階段是一條 Load 指令時，資料要等它過 MEM 階段才會出來。
-  // 如果 ID 階段的指令馬上就要用這個資料，必須 Stall 1 個 Cycle。float_sb_clearfloat_sb_clear
-  // 這裡必須嚴格區分「整數 Load (write_rd)」和「浮點 Load (write_frd)」。
-  // ====================================================================
-  
-  // // 1. ID 階段 (Instr0/INT) 依賴 EXE 階段的整數 Load
-  // wire id0_depend_int_load = exe_r.decode.write_rd & (
-  //     (id_r.decode.read_rs1 & id_rs1_equal_exe_rd & id_rs1_non_zero) |
-  //     (id_r.decode.read_rs2 & id_rs2_equal_exe_rd & id_rs2_non_zero)
-  // );
-
-  // // 2. ID 階段 (Instr0/INT) 依賴 EXE 階段的浮點 Load (例如 FSW 讀取 FRS2)
-  // wire id0_depend_fp_load = exe_r.decode.write_frd & (
-  //     (id_r.decode.read_frs1 & id_rs1_equal_exe_rd) |
-  //     (id_r.decode.read_frs2 & id_rs2_equal_exe_rd) |
-  //     (id_r.decode.read_frs3 & id_rs3_equal_exe_rd)
-  // );
-
-  // // 3. ID 階段 (Instr1/FP) 依賴 EXE 階段的整數 Load (例如 FCVT 讀取 RS1)
-  // wire id1_depend_int_load = exe_r.decode.write_rd & (
-  //     (id_r.decode1.read_rs1 & (id_r.instruction1.rs1 == exe_r.instruction.rd) & (id_r.instruction1.rs1 != 0)) |
-  //     (id_r.decode1.read_rs2 & (id_r.instruction1.rs2 == exe_r.instruction.rd) & (id_r.instruction1.rs2 != 0))
-  // );
-
-  // // 4. ID 階段 (Instr1/FP) 依賴 EXE 階段的浮點 Load (例如 FADD 讀取 FRS1/FRS2/FRS3)
-  // wire id1_depend_fp_load = exe_r.decode.write_frd & (
-  //     (id_r.decode1.read_frs1 & (id_r.instruction1.rs1 == exe_r.instruction.rd)) |
-  //     (id_r.decode1.read_frs2 & (id_r.instruction1.rs2 == exe_r.instruction.rd)) |
-  //     (id_r.decode1.read_frs3 & (id_r.instruction1[31:27] == exe_r.instruction.rd))
-  // );
-
-  // //總結 Local Load Stall
-  // assign stall_depend_local_load = local_load_in_exe & (
-  //     id0_depend_int_load | id0_depend_fp_load | 
-  //     id1_depend_int_load | id1_depend_fp_load
-  // );
-
-// ====================================================================
-  // [Local Load Dependency Stall] (Clean Version)
-  // ====================================================================
-  // 檢查 EXE 階段是否為 Load 指令
   wire exe_is_int_load = local_load_in_exe & exe_r.decode.write_rd;
   wire exe_is_fp_load  = local_load_in_exe & exe_r.decode.write_frd;
   wire [reg_addr_width_lp-1:0] exe_rd = exe_r.instruction.rd;
 
-  // 1. 檢查整數暫存器的依賴 (利用步驟3做好的 int_sb_rs_addr)
+
   wire depend_on_int_load = exe_is_int_load & (
       (int_sb_read_rs1 & (int_sb_rs1_addr == exe_rd) & (int_sb_rs1_addr != '0)) |
       (int_sb_read_rs2 & (int_sb_rs2_addr == exe_rd) & (int_sb_rs2_addr != '0))
   );
 
-  // 2. 檢查浮點暫存器的依賴 (利用原本寫好的 float_sb_frs_addr)
   wire depend_on_fp_load = exe_is_fp_load & (
       (float_sb_read_frs1 & (float_sb_frs1_addr == exe_rd)) |
       (float_sb_read_frs2 & (float_sb_frs2_addr == exe_rd)) |
@@ -1682,10 +1468,6 @@ module vanilla_core
     |(id_r.decode.read_rs2 & id_rs2_equal_exe_rd & id_rs2_non_zero));
 
   // stall_bypass
-  // 如果沒有接實體線路可以 Bypass 的情況，一律強制 Stall 等到 WriteBack！
-  // ====================================================================
-
-  // 1. FP 管線讀取 FP 暫存器 (只有 FP_EXE 可以 bypass，FLW 必須等)
   wire stall_bypass_fp_frs = 
      (id_r.decode1.read_frs1 & (
          ((id_frs1 == fp_exe_ctrl_r.rd) & fp_exe_ctrl_r.fp_decode.is_fpu_float_op)
@@ -1706,7 +1488,6 @@ module vanilla_core
        | ((id_frs3 == flw_wb_ctrl_r.rd_addr) & flw_wb_ctrl_r.valid)
      ));
 
-  // 2. FP 管線讀取 INT 暫存器 (沒有跨管線 bypass，只要還沒寫回就必須等)
   wire stall_bypass_fp_rs1 = (id_r.decode1.read_rs1 & (id_r.instruction1.rs1 != '0)) &
     (((id_r.instruction1.rs1 == fp_exe_ctrl_r.rd) & fp_exe_ctrl_r.fp_decode.is_fpu_int_op)
     |((id_r.instruction1.rs1 == imul_rd_lo) & imul_v_lo)
@@ -1714,7 +1495,6 @@ module vanilla_core
     |((id_r.instruction1.rs1 == mem_ctrl_r.rd_addr) & mem_ctrl_r.write_rd)
     |((id_r.instruction1.rs1 == wb_ctrl_r.rd_addr) & wb_ctrl_r.write_rd));
 
-  // 3. INT 管線讀取 INT 暫存器 (有完整 MUX，只等長延遲運算)
   wire stall_bypass_int_rs1 = (id_r.decode.read_rs1 & id_rs1_non_zero) &
     ((id_rs1_equal_fp_exe_rd & fp_exe_ctrl_r.fp_decode.is_fpu_int_op)
     |((id_rs1 == imul_rd_lo) & imul_v_lo));
@@ -1723,7 +1503,6 @@ module vanilla_core
     ((id_rs2_equal_fp_exe_rd & fp_exe_ctrl_r.fp_decode.is_fpu_int_op)
     |((id_rs2 == imul_rd_lo) & imul_v_lo));
 
-  // 4. INT 管線讀取 FP 暫存器 (如 FSW，沒有跨管線 bypass，必須等)
   wire stall_bypass_int_frs2 = id_r.decode.read_frs2 &
     (((id_rs2 == fp_exe_ctrl_r.rd) & (fp_exe_ctrl_r.fp_decode.is_fpu_float_op | fp_exe_ctrl_r.fp_decode.is_fdiv_op | fp_exe_ctrl_r.fp_decode.is_fsqrt_op))
     |((id_rs2 == fpu1_rd_r) & fpu1_v_r)
@@ -1891,7 +1670,7 @@ module vanilla_core
   // interrupt / CSR control
   assign mcsr_we_li = (id_r.decode.is_csr_op) & id_issue;
   assign mcsr_data_li = rs1_val_to_exe;
-  assign mcsr_instr_executed_li = id_r.valid & id_issue & mstatus_r.mie; // trace interrupt pending can be set outside interrupt.
+  assign mcsr_instr_executed_li = id_r.valid & id_issue & mstatus_r.mie; 
   assign mcsr_interrupt_entered_li = interrupt_ready & ~stall_all;
   assign mcsr_mret_called_li = exe_r.decode.is_mret_op & ~stall_all;
   assign mcsr_npc_r_li = npc_r;
